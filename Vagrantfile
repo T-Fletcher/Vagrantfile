@@ -16,15 +16,17 @@ Vagrant.configure("2") do |config|
   config.vm.network "private_network", ip: "192.168.33.10"
 
   # Synced folders
+  # For some reason, absolute Host machine paths don't work, must use ~/.. 
   config.vm.synced_folder "~/Documents/repositories", "/var/www/html"
   config.vm.synced_folder "~/var/www/site-php", "/var/www/site-php"
   config.vm.synced_folder "~/var/www/configs", "/etc/apache2/sites-enabled"
   config.vm.synced_folder "~/var/www/logs", "/var/www/logs"
-  config.vm.synced_folder "~/var/www/mysql", "/var/lib/mysql"
+  config.vm.synced_folder "~/var/www/mysql", "/var/lib/mysql", nfs: true, :linux__nfs_options => ["no_root_squash"]
   config.vm.synced_folder "~/var/www/transfer", "/home/vagrant/transfer"
   config.vm.synced_folder "~/var/www/scripts", "/home/vagrant/scripts"
 
   # Shell commands to run on boot
+  # NOTE that all commands are run as root!
   config.vm.provision "shell", inline: <<-SHELL
     
     # Update and Install Utils
@@ -53,9 +55,9 @@ Vagrant.configure("2") do |config|
     mv composer.phar /usr/local/bin/composer
     
     # @TODO: Drush
-    ##composer global require drush/drush:8.x
-    ##echo "export PATH=\"$HOME/.composer/vendor/bin:$PATH\"" >> /home/vagrant/.profile
-    ##source /home/vagrant/.profile
+    runuser -l vagrant -c 'composer global require drush/drush:8.x'
+    echo "export PATH=\"$HOME/.composer/vendor/bin:$PATH\"" >> /home/vagrant/.profile
+    source /home/vagrant/.profile
     
     # WP CLI
     curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
@@ -67,21 +69,27 @@ Vagrant.configure("2") do |config|
     sudo apt-get install -y nodejs > /dev/null 2>&1
     sudo npm install -g astrum
 
-    # Add some aliases and colors
-    cat ~/transfers.bash_aliases > ~/.bash_aliases
-    cat ~/transfer/.bash_variables > ~/.bash_variables
-    cat ~/transfer/.dircolors > ~/.dircolors
-    cat ~/transfer/.vimrc > ~/.vimrc
+    # Add some aliases, fix file ownership and permissions etc
+    cat /home/vagrant/transfer/.bash_aliases > /home/vagrant/.bash_aliases
+    chmod 644 /home/vagrant/.bash_aliases
+    chown vagrant:vagrant /home/vagrant/.bash_aliases
+    source /home/vagrant/.bash_aliases
 
-    source ~/.bash_variables
-    source ~/.bash_aliases
-    source ~/.dircolors
-    source ~/.vimrc
-
+    # Reboot apache, as sometimes it doesn't pick up the sites...
+    sudo service apache2 restart
   SHELL
+
   # Always Start Apache and MySQL
   config.vm.provision "shell", inline: "sudo service apache2 start",
     run: "always"
   config.vm.provision "shell", inline: "sudo service mysql start",
     run: "always"
 end
+
+# @TODO:
+# 
+# 1. Get Drush working
+# 2. Auto-create relevant databases - DB list in transfers/databases.txt
+# 3. Auto-download latest PROD backup from live hosting
+# 4. Auto-add and configure stage_file_proxy
+# 
