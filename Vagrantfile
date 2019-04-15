@@ -25,12 +25,13 @@ Vagrant.configure("2") do |config|
   config.vm.synced_folder "~/var/www/site-php", "/var/www/site-php"
   config.vm.synced_folder "~/var/www/configs", "/etc/apache2/sites-enabled"
   config.vm.synced_folder "~/var/www/logs", "/var/www/logs"
-  config.vm.synced_folder "~/var/www/mysql", "/var/lib/mysql", 
+  config.vm.synced_folder "~/var/www/mysql-test", "/var/lib/mysql", 
     nfs: true, 
-    linux__nfs_options: ["no_root_squash"],
-    owner: "mysql",
-    group: "mysql",
-    mount_options: ["dmode=755,fmode=644"]
+    linux__nfs_options: ["no_root_squash"]
+    # @TODO: This bit fails on initial build, as the 'mysql' user doesn't exist yet. It didn't seem to make a difference anyway...
+    # owner: "mysql",
+    # group: "mysql",
+    # mount_options: ["dmode=755,fmode=644"]
   config.vm.synced_folder "~/var/www/transfer", "/home/vagrant/transfer",
     owner: "vagrant",
     group: "vagrant",
@@ -44,116 +45,174 @@ Vagrant.configure("2") do |config|
   # NOTE that all commands are run as root!
   config.vm.provision "shell", inline: <<-SHELL
 
-    # Update and Install Utils
+    echo " "
+    echo "########## Updating packages ##########"
+    echo " "
     export DEBIAN_FRONTEND=noninteractive
     echo "Updating packages"
     sudo apt-get update
-    echo ""
-    echo "#############################"
-    echo "Installing ZIP"
-    echo "#############################"
-    apt-get install -y zip unzip
     
-    # Install PPA (Apache2)
-    echo ""
-    echo "#############################"
-    echo "Installing PPA"
-    echo "#############################"    
+
+    echo " "
+    echo "########## Upgrading packages ##########"
+    echo " "
+    sudo apt-get -y upgrade
+    
+
+    # Set up some swapdisk space, to allow for low RAM limits on VM. This prevents crashes when using Composer
+    echo " "
+    echo "########## Creating swapdisk ##########"
+    echo " "
+    sudo /bin/dd if=/dev/zero of=/var/swap.1 bs=1M count=1024
+    sudo /sbin/mkswap /var/swap.1
+    sudo /sbin/swapon /var/swap.1
+
+
+    # Install some handy utilities
+    echo " "
+    echo "########## Installing ZIP and PipeViewer ##########"
+    echo " "
+    apt-get install -y zip unzip
+
+
+    echo " "
+    echo "########## Installing PPA (apache2) ##########"
+    echo " "
+    # apache2 is added here to recognise the 'a2dismod' and 'a2enmod' commands below
+    # sudo apt-get install -y apache2
     sudo add-apt-repository ppa:ondrej/php
     sudo add-apt-repository ppa:ondrej/apache2
+    echo "Copying in 000-default.conf site configuration to /etc/apache2/sites-available/"
+    sudo cp /home/vagrant/transfer/000-default.conf /etc/apache2/sites-available/
+    sudo cd /etc/apache2 && mkdir logs
+    sudo service apache2 restart
     sudo apt-get update
 
-    # Install PHP 7.2+
-    echo ""
-    echo "#############################"
-    echo "Installing PHP"
-    echo "#############################"
-    sudo apt-get -y install php7.2 php7.2-common php7.2-cli php7.2-fpm
-    
+
+    # Install PHP
+    echo " "
+    echo "########## Installing PHP ##########"
+    echo " "
+    sudo apt-get -y install php libapache2-mod-php php-mysql php-mbstring php-common php-xml php-gd php-curl
+
+
     # Install MySQL Server
-    echo ""
-    echo "#############################"
-    echo "Installing MySQL"
-    echo "#############################"
+    echo " "
+    echo "########## Preparation for MySQL ##########"
+    echo " "
+    echo "If you get MySQL errors in the out, check that there isn't another VM already occupying the synced ~/var/lib/mysql directory."
+    echo "If there is, save a copy of the directory so you don't destroy another VM's databases, and empty it."
     debconf-set-selections <<< 'mysql-server mysql-server/root_password password root'
     debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password root'
-    apt-get install -y mysql-server
+    sudo apt-get install -y mysql-server
+    sudo mysqld --initialize
     
+
     # Tweak mods
+    echo " "
+    echo "########## Tweaking apache and php setup ##########"
+    echo " "
     sudo a2dismod mpm_event
-    sudo a2enmod actions mpm_prefork rewrite php7.0
+    sudo a2enmod actions mpm_prefork rewrite php7.3
     sudo phpenmod mbstring
+    sudo service apache2 restart
+
 
     # Install Composer
-    echo ""
-    echo "#############################"
-    echo  "Installing Composer"
-    echo "#############################"
+    # echo " "
+    # echo "########## Installing Composer ##########"
+    echo " "
     curl -sS https://getcomposer.org/installer | php
     mv composer.phar /usr/local/bin/composer
-    # TODO: This does nothing as a project is not initialised at this point, so $HOME/.composer doesn't exist. 
-    echo "export PATH=\"$HOME/.composer/vendor/bin:$PATH\"" >> /home/vagrant/.profile
+
+
+    # Install Drush
+    echo " "
+    echo "########## Installing Drush 8.x ##########"
+    echo " "
+    sudo composer global require drush/drush:8.*
+    cd && composer require drush/drush:8.*
+    echo "export PATH='~/.config/composer/vendor/bin:$PATH'" >> /home/vagrant/.profile
     source /home/vagrant/.profile
     
-    # @TODO: Drush sticks with v5.10, not 8.x
-    echo ""
-    echo "#############################"
-    echo "Installing Drush 8.x"
-    echo "#############################"
-    # runuser -l vagrant -c 'composer global require drush/drush:8.*'
-    runuser -l vagrant -c 'cd && composer require drush/drush:8.*'
-    
-    # WP CLI
-    echo ""
-    echo "#############################"
-    echo "Installing WP CLI"
-    echo "#############################"
+
+    # Install WP CLI
+    echo " "
+    echo "########## Installing WP CLI ##########"
+    echo " "
     curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
     chmod +x wp-cli.phar
     mv wp-cli.phar /usr/local/bin/wp
     
-    # Install NodeJs - and Astrum (for Pattern Library building)
-    echo ""
-    echo "#############################"
-    echo "Installing NodeJS and Astrum"
-    echo "#############################"
+
+    # Install NodeJs
+    echo " "
+    echo "########## Installing NodeJS ##########"
+    echo " "
     curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash - > /dev/null 2>&1
     sudo apt-get install -y nodejs > /dev/null 2>&1
+    
+
+    # Install Astrum (for Pattern Library building)
+    echo " "
+    echo "########## Installing Astrum ##########"
+    echo " "
     sudo npm install -g astrum
 
-    # Add some aliases, fix file ownership and permissions etc
-    # echo ""
-    # echo "#############################"
-    # echo "Adding aliases"
-    # echo "#############################"
-    # runuser -l vagrant -c 'cat /home/vagrant/transfer/.bash_aliases > /home/vagrant/.bash_aliases'
-    # chmod 644 /home/vagrant/.bash_aliases
-    # chown vagrant:vagrant /home/vagrant/.bash_aliases
-    # runuser -l vagrant -c 'source /home/vagrant/.bash_aliases'
 
-    # Allow the Vagrant to use Drupal's temporary file directory
-    chown vagrant:vagrant /var/tmp
+    # Add some aliases to make the VM shell much sexy
+    # echo " "
+    # echo "########## Adding aliases ##########"
+    echo " "
+    alias aa="ls -alF"
+    alias cd="cd .."
+    alias cc="clear"
+    alias cc="exit"
+
+
+    echo " "
+    echo "########## Allow the Vagrant to use Drupal's temporary file directory ##########"
+    echo " "
+    echo 'Changing ownership of /var/tmp'
+    sudo chown vagrant:vagrant /var/tmp
+
+
+    echo " "
+    echo "########## Source Acquia site aliases ##########"
+    echo " "
+    # You must download them into ~/var/www/transfer first, for the correct version of Drush,
+    # and also import/set up SSH keys for them to work
+    runuser -l vagrant -c 'tar -C $HOME -xf $HOME/transfer/acquia-cloud.drush-8-aliases.tar.gz'
 
   SHELL
 
   # Always Start Apache and MySQL
-  config.vm.provision "shell", inline: "sudo service apache2 start",
+  config.vm.provision "shell", inline: "echo '########## Starting apache ##########' && sudo service apache2 start",
     run: "always"
-  config.vm.provision "shell", inline: "sudo service mysql start",
+  config.vm.provision "shell", inline: "echo '########## Starting mysql ##########' && sudo service mysql start",
     run: "always"
 
   config.vm.provision "shell", run: 'always', inline: <<-SHELL
-    # Reboot apache, as sometimes it doesn't pick up the sites...
+    echo " "
     echo "#### Restarting Apache"
+    echo " "
     sudo service apache2 restart
-    echo "*** VM provisioning complete! ***"
+    echo "########## VM provisioning complete! ##########"
   SHELL
+
+  # Auto-create the databases listed stored in /transfers/databases.txt
+  # config.vm.provision "shell", inline: <<-SHELL
+  #   runuser -l vagrant -c 'bash ~/scripts/db-create.sh'
+  # SHELL
+
 end
 
 # @TODO:
 # 
-# 1. Get Drush installing the correct version - installs 5.x, not 8.x - is Composer required?
-# 2. Auto-create relevant databases - DB list in transfers/databases.txt
+# 1. Get Drush installing the correct version - installs 5.x, not 8.x - is Composer required? - YES, DONE
+# 2. Auto-create relevant databases - DB list in transfers/databases.txt - DONE
 # 3. Auto-download latest PROD backup from live hosting
-# 4. Auto-add and configure stage_file_proxy
+# 4. Auto-import latest PROD backup into matching database in VM. Maybe store the databases inside folders matching the DB name? - DONE, see scripts/db-import.sh
+# 5. Auto-add and configure stage_file_proxy
+# 6. Set up a local dev modules folder and auto-enable them
 # 
