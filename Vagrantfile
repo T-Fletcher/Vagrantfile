@@ -25,7 +25,7 @@ Vagrant.configure("2") do |config|
   config.vm.synced_folder "~/var/www/site-php", "/var/www/site-php"
   config.vm.synced_folder "~/var/www/configs", "/etc/apache2/sites-enabled"
   config.vm.synced_folder "~/var/www/logs", "/var/www/logs"
-  config.vm.synced_folder "~/var/www/mysql-test", "/var/lib/mysql", 
+  config.vm.synced_folder "~/var/www/mysql", "/var/lib/mysql", 
     nfs: true, 
     linux__nfs_options: ["no_root_squash"]
     # @TODO: This bit fails on initial build, as the 'mysql' user doesn't exist yet. It didn't seem to make a difference anyway...
@@ -70,7 +70,7 @@ Vagrant.configure("2") do |config|
 
     # Install some handy utilities
     echo " "
-    echo "########## Installing ZIP and PipeViewer ##########"
+    echo "########## Installing ZIP ##########"
     echo " "
     apt-get install -y zip unzip
 
@@ -119,8 +119,8 @@ Vagrant.configure("2") do |config|
 
 
     # Install Composer
-    # echo " "
-    # echo "########## Installing Composer ##########"
+    echo " "
+    echo "########## Installing Composer ##########"
     echo " "
     curl -sS https://getcomposer.org/installer | php
     mv composer.phar /usr/local/bin/composer
@@ -130,10 +130,11 @@ Vagrant.configure("2") do |config|
     echo " "
     echo "########## Installing Drush 8.x ##########"
     echo " "
-    sudo composer global require drush/drush:8.*
-    cd && composer require drush/drush:8.*
+    echo "If you get errors when attempting to run drush inside a site root, check: "
+    echo "https://drupal.stackexchange.com/questions/209161/drush-permission-denied-outside-htdocs"
+    runuser -l vagrant -c 'cd && composer global require drush/drush:8.*'
     echo "export PATH='~/.config/composer/vendor/bin:$PATH'" >> /home/vagrant/.profile
-    source /home/vagrant/.profile
+    runuser -l vagrant -c 'source /home/vagrant/.profile'
     
 
     # Install WP CLI
@@ -211,7 +212,7 @@ end
 # 
 # 1. Get Drush installing the correct version - installs 5.x, not 8.x - is Composer required? - YES, DONE
 # 2. Auto-create relevant databases - DB list in transfers/databases.txt - DONE
-# 3. Auto-download latest PROD backup from live hosting
+# 3. Auto-download latest PROD backup from live hosting - CHRIS WHIPPED UP SOMETHING FOR THIS
 # 4. Auto-import latest PROD backup into matching database in VM. Maybe store the databases inside folders matching the DB name? - DONE, see scripts/db-import.sh
 # 5. Auto-add and configure stage_file_proxy
 # 6. Set up a local dev modules folder and auto-enable them
