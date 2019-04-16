@@ -20,18 +20,18 @@ Vagrant.configure("2") do |config|
   # In some cases, we need to enforce permissions and owner:user groups
   config.vm.synced_folder "~/Documents/repositories", "/var/www/html",
     owner: "vagrant",
-    group: "vagrant",
-    mount_options: ["dmode=755,fmode=644"]
+    group: "vagrant"
+    # WARNING: Assigning permissions here prevents changing them in the VM, 
+    # leading to Drupal not being able to use the file system if set incorrectly.
+    # If they are not specified here, they can be altered in the VM by changing
+    # them on the host machine.
+    #mount_options: ["dmode=755,fmode=644"]
   config.vm.synced_folder "~/var/www/site-php", "/var/www/site-php"
   config.vm.synced_folder "~/var/www/configs", "/etc/apache2/sites-enabled"
   config.vm.synced_folder "~/var/www/logs", "/var/www/logs"
   config.vm.synced_folder "~/var/www/mysql", "/var/lib/mysql", 
     nfs: true, 
     linux__nfs_options: ["no_root_squash"]
-    # @TODO: This bit fails on initial build, as the 'mysql' user doesn't exist yet. It didn't seem to make a difference anyway...
-    # owner: "mysql",
-    # group: "mysql",
-    # mount_options: ["dmode=755,fmode=644"]
   config.vm.synced_folder "~/var/www/transfer", "/home/vagrant/transfer",
     owner: "vagrant",
     group: "vagrant",
@@ -93,7 +93,7 @@ Vagrant.configure("2") do |config|
     echo " "
     echo "########## Installing PHP ##########"
     echo " "
-    sudo apt-get -y install php libapache2-mod-php php-mysql php-mbstring php-common php-xml php-gd php-curl
+    sudo apt-get -y install php7.2 libapache2-mod-php7.2 php7.2-mysql php7.2-mbstring php7.2-common php7.2-xml php7.2-gd php7.2-curl
 
 
     # Install MySQL Server
@@ -113,8 +113,8 @@ Vagrant.configure("2") do |config|
     echo "########## Tweaking apache and php setup ##########"
     echo " "
     sudo a2dismod mpm_event
-    sudo a2enmod actions mpm_prefork rewrite php7.3
-    sudo phpenmod mbstring
+    sudo a2enmod actions mpm_prefork rewrite php7.2
+    sudo phpenmod php7.2-mbstring
     sudo service apache2 restart
 
 
@@ -169,13 +169,6 @@ Vagrant.configure("2") do |config|
     alias cd="cd .."
     alias cc="clear"
     alias cc="exit"
-
-
-    echo " "
-    echo "########## Allow the Vagrant to use Drupal's temporary file directory ##########"
-    echo " "
-    echo 'Changing ownership of /var/tmp'
-    sudo chown vagrant:vagrant /var/tmp
 
 
     echo " "
