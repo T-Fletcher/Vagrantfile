@@ -160,24 +160,6 @@ Vagrant.configure("2") do |config|
     echo " "
     sudo npm install -g astrum
 
-
-    # Add some aliases to make the VM shell much sexy
-    # echo " "
-    # echo "########## Adding aliases ##########"
-    echo " "
-    alias aa="ls -alF"
-    alias cd="cd .."
-    alias cc="clear"
-    alias cc="exit"
-
-
-    echo " "
-    echo "########## Source Acquia site aliases ##########"
-    echo " "
-    # You must download them into ~/var/www/transfer first, for the correct version of Drush,
-    # and also import/set up SSH keys for them to work
-    runuser -l vagrant -c 'tar -C $HOME -xf $HOME/transfer/acquia-cloud.drush-8-aliases.tar.gz'
-
   SHELL
 
   # Always Start Apache and MySQL
