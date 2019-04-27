@@ -15,9 +15,16 @@ Vagrant.configure("2") do |config|
   config.vm.box = "ubuntu/xenial64"
   config.vm.network "private_network", ip: "192.168.33.10"
 
+  #
   # Synced folders
-  # For some reason, absolute Host machine paths don't work, must use ~/.. 
-  # In some cases, we need to enforce permissions and owner:user groups
+  #
+
+  # For relative paths on Windows Hosts machines, you can use UNIX-style relative
+  # paths with forward slashes ~/like/this, but absolute paths must use
+  # double-backslashes C:\\like\\this.
+
+  # You can enforce permissions and owner:user groups, but this locks ANY permission
+  # changes by the host or guest  once the VM is started.
   config.vm.synced_folder "~/Documents/repositories", "/var/www/html",
     owner: "vagrant",
     group: "vagrant"
@@ -41,8 +48,11 @@ Vagrant.configure("2") do |config|
     group: "vagrant",
     mount_options: ["dmode=755,fmode=644"]
 
+  
   # Shell commands to run on boot
-  # NOTE that all commands are run as root!
+  
+  # NOTE: all commands are run as root
+
   config.vm.provision "shell", inline: <<-SHELL
 
     echo " "
@@ -100,7 +110,7 @@ Vagrant.configure("2") do |config|
     echo " "
     echo "########## Preparation for MySQL ##########"
     echo " "
-    echo "If you get MySQL errors in the out, check that there isn't another VM already occupying the synced ~/var/lib/mysql directory."
+    echo "If you get MySQL errors in the output, check that there isn't another VM already occupying the synced ~/var/lib/mysql directory."
     echo "If there is, save a copy of the directory so you don't destroy another VM's databases, and empty it."
     debconf-set-selections <<< 'mysql-server mysql-server/root_password password root'
     debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password root'
@@ -162,6 +172,35 @@ Vagrant.configure("2") do |config|
 
   SHELL
 
+# Scripts to run every time 'vagrant up' is run
+
+  config.vm.provision "shell", run: 'always', inline: <<-SHELL
+    
+    # Add some aliases to make the VM shell much sexy
+    # echo " "
+    # echo "########## Adding aliases ##########"
+    echo " "
+    if [ -f /home/vagrant/transfer/.bash_aliases ]; then 
+        cp /home/vagrant/transfer/.bash_aliases /home/vagrant/.bash_aliases
+    else 
+        echo "No .bash_alias file found, skipping..."
+    fi
+    runuser -l vagrant -c 'source .bash_aliases'
+
+
+    echo " "
+    echo "########## Source Acquia site aliases ##########"
+    echo " "
+    # You must download them into ~/var/www/transfer first, for the correct version of Drush,
+    # and also import/set up SSH keys for them to work
+    if [ -f $HOME/transfer/acquia-cloud.drush-8-aliases.tar.gz ]; then 
+        runuser -l vagrant -c 'tar -C $HOME -xf $HOME/transfer/acquia-cloud.drush-8-aliases.tar.gz';
+    else 
+        echo "No Acquia alias file found, skipping..."
+    fi
+
+  SHELL
+
   # Always Start Apache and MySQL
   config.vm.provision "shell", inline: "echo '########## Starting apache ##########' && sudo service apache2 start",
     run: "always"
@@ -187,8 +226,7 @@ end
 # 
 # 1. Get Drush installing the correct version - installs 5.x, not 8.x - is Composer required? - YES, DONE
 # 2. Auto-create relevant databases - DB list in transfers/databases.txt - DONE
-# 3. Auto-download latest PROD backup from live hosting - CHRIS WHIPPED UP SOMETHING FOR THIS
+# 3. Auto-download latest PROD backup from live hosting - DONE, see scripts/db-download-drupal.sh
 # 4. Auto-import latest PROD backup into matching database in VM. Maybe store the databases inside folders matching the DB name? - DONE, see scripts/db-import.sh
-# 5. Auto-add and configure stage_file_proxy
-# 6. Set up a local dev modules folder and auto-enable them
+# 5. Set up a local dev modules folder and auto-enable them, like admin_menu, module_filter and stage_file_proxy
 # 
