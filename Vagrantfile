@@ -47,8 +47,12 @@ Vagrant.configure("2") do |config|
     owner: "vagrant",
     group: "vagrant",
     mount_options: ["dmode=755,fmode=644"]
-
   
+  # Beef up the RAM memory and CPU cores - be sure to check your host machine's system resources before changing this!
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 4096
+    v.cpus = 2
+
   # Shell commands to run on boot
   
   # NOTE: all commands are run as root
