@@ -59,39 +59,29 @@ Vagrant.configure("2") do |config|
 
   config.vm.provision "shell", inline: <<-SHELL
 
-    echo " "
-    echo "########## Updating packages ##########"
-    echo " "
+    echo -e "\n########## Updating packages ##########\n"
     export DEBIAN_FRONTEND=noninteractive
     echo "Updating packages"
     sudo apt-get update
     
 
-    echo " "
-    echo "########## Upgrading packages ##########"
-    echo " "
+    echo -e "\n########## Upgrading packages ##########\n"
     sudo apt-get -y upgrade
     
 
     # Set up some swapdisk space, to allow for low RAM limits on VM. This prevents crashes when using Composer
-    echo " "
-    echo "########## Creating swapdisk ##########"
-    echo " "
+    echo -e "\n########## Creating swapdisk ##########\n"
     sudo /bin/dd if=/dev/zero of=/var/swap.1 bs=1M count=1024
     sudo /sbin/mkswap /var/swap.1
     sudo /sbin/swapon /var/swap.1
 
 
     # Install some handy utilities
-    echo " "
-    echo "########## Installing ZIP ##########"
-    echo " "
+    echo -e "\n########## Installing ZIP ##########\n"
     apt-get install -y zip unzip
 
 
-    echo " "
-    echo "########## Installing PPA (apache2) ##########"
-    echo " "
+    echo -e "\n########## Installing PPA (apache2) ##########\n"
     # apache2 is added here to recognise the 'a2dismod' and 'a2enmod' commands below
     # sudo apt-get install -y apache2
     sudo add-apt-repository ppa:ondrej/php
@@ -104,16 +94,12 @@ Vagrant.configure("2") do |config|
 
 
     # Install PHP
-    echo " "
-    echo "########## Installing PHP ##########"
-    echo " "
+    echo -e "\n########## Installing PHP ##########\n"
     sudo apt-get -y install php7.2 libapache2-mod-php7.2 php7.2-mysql php7.2-mbstring php7.2-common php7.2-xml php7.2-gd php7.2-curl
 
 
     # Install MySQL Server
-    echo " "
-    echo "########## Preparation for MySQL ##########"
-    echo " "
+    echo -e "\n########## Preparation for MySQL ##########\n"
     echo "If you get MySQL errors in the output, check that there isn't another VM already occupying the synced ~/var/lib/mysql directory."
     echo "If there is, save a copy of the directory so you don't destroy another VM's databases, and empty it."
     debconf-set-selections <<< 'mysql-server mysql-server/root_password password root'
@@ -123,9 +109,7 @@ Vagrant.configure("2") do |config|
     
 
     # Tweak mods
-    echo " "
-    echo "########## Tweaking apache and php setup ##########"
-    echo " "
+    echo -e "\n########## Tweaking apache and php setup ##########\n"
     sudo a2dismod mpm_event
     sudo a2enmod actions mpm_prefork rewrite php7.2
     sudo phpenmod php7.2-mbstring
@@ -133,17 +117,13 @@ Vagrant.configure("2") do |config|
 
 
     # Install Composer
-    echo " "
-    echo "########## Installing Composer ##########"
-    echo " "
+    echo -e "\n########## Installing Composer ##########\n"
     curl -sS https://getcomposer.org/installer | php
     mv composer.phar /usr/local/bin/composer
 
 
     # Install Drush
-    echo " "
-    echo "########## Installing Drush 8.x ##########"
-    echo " "
+    echo -e "\n########## Installing Drush 8.x ##########\n"
     echo "If you get errors when attempting to run drush inside a site root, check: "
     echo "https://drupal.stackexchange.com/questions/209161/drush-permission-denied-outside-htdocs"
     runuser -l vagrant -c 'cd && composer global require drush/drush:8.*'
@@ -152,49 +132,53 @@ Vagrant.configure("2") do |config|
     
 
     # Install WP CLI
-    echo " "
-    echo "########## Installing WP CLI ##########"
-    echo " "
+    echo -e "\n########## Installing WP CLI ##########\n"
     curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
     chmod +x wp-cli.phar
     mv wp-cli.phar /usr/local/bin/wp
     
 
     # Install NodeJs
-    echo " "
-    echo "########## Installing NodeJS ##########"
-    echo " "
+    echo -e "\n########## Installing NodeJS ##########\n"
     curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash - > /dev/null 2>&1
     sudo apt-get install -y nodejs > /dev/null 2>&1
     
 
     # Install Astrum (for Pattern Library building)
-    echo " "
-    echo "########## Installing Astrum ##########"
-    echo " "
+    echo -e "\n########## Installing Astrum ##########\n"
     sudo npm install -g astrum
+
+    
+    # LOCK THE .SSH DIRECTORY SO YOU CAN'T ACCIDENTALLY BRICK THE VM!!!
+    # https://www.ostechnix.com/prevent-files-folders-accidental-deletion-modification-linux/
+    echo -e "Locking .ssh directory against modification or deletion.\nTo change this setting, see https://www.ostechnix.com/prevent-files-folders-accidental-deletion-modification-linux/"
+    sudo chattr -R +i ~/.ssh
 
   SHELL
 
 # Scripts to run every time 'vagrant up' is run
 
   config.vm.provision "shell", run: 'always', inline: <<-SHELL
+
+    # @TODO: Make it impossible to accidentally delete the SSH directory, as this bricks the machine once you log out!!!
+    # https://unix.stackexchange.com/questions/20104/is-there-any-way-to-prevent-deletion-of-certain-files-from-user-owned-directory#answer-20107
+
+
     
     # Add some aliases to make the VM shell much sexy
     # echo " "
-    # echo "########## Adding aliases ##########"
-    echo " "
+    # echo "########## Adding aliases ##########\n"
     if [ -f /home/vagrant/transfer/.bash_aliases ]; then 
         cp /home/vagrant/transfer/.bash_aliases /home/vagrant/.bash_aliases
+        
+        # @TODO: Change the terminal background colour when SSH'd into the vagrant machine, to avoid confusion. 
     else 
         echo "No .bash_alias file found, skipping..."
     fi
     runuser -l vagrant -c 'source .bash_aliases'
 
 
-    echo " "
-    echo "########## Source Acquia site aliases ##########"
-    echo " "
+    echo -e "\n########## Source Acquia site aliases ##########\n"
     # You must download them into ~/var/www/transfer first, for the correct version of Drush,
     # and also import/set up SSH keys for them to work
     if [ -f $HOME/transfer/acquia-cloud.drush-8-aliases.tar.gz ]; then 
@@ -212,8 +196,7 @@ Vagrant.configure("2") do |config|
     run: "always"
 
   config.vm.provision "shell", run: 'always', inline: <<-SHELL
-    echo " "
-    echo "#### Restarting Apache"
+    echo -e "\n#### Restarting Apache"
     echo " "
     sudo service apache2 restart
     echo "########## VM provisioning complete! ##########"
@@ -230,7 +213,7 @@ end
 # 
 # 1. Get Drush installing the correct version - installs 5.x, not 8.x - is Composer required? - YES, DONE
 # 2. Auto-create relevant databases - DB list in transfers/databases.txt - DONE
-# 3. Auto-download latest PROD backup from live hosting - DONE, see scripts/db-download-drupal.sh
-# 4. Auto-import latest PROD backup into matching database in VM. Maybe store the databases inside folders matching the DB name? - DONE, see scripts/db-import.sh
+# 3. Auto-download latest PROD backup from live hosting - DONE, see scripts/db-download-drupal-all.sh
+# 4. Auto-import latest PROD backup into matching database in VM. Maybe store the databases inside folders matching the DB name? - DONE, see scripts/db-import-all.sh
 # 5. Set up a local dev modules folder and auto-enable them, like admin_menu, module_filter and stage_file_proxy
 # 
