@@ -61,7 +61,7 @@ Vagrant.configure("2") do |config|
 
     echo -e "\n########## Updating packages ##########\n"
     export DEBIAN_FRONTEND=noninteractive
-    echo "Updating packages"
+    echo "Updating packages..."
     sudo apt-get update
     
 
@@ -78,7 +78,8 @@ Vagrant.configure("2") do |config|
 
     # Install some handy utilities
     echo -e "\n########## Installing ZIP ##########\n"
-    apt-get install -y zip unzip
+    apt-get install -y zip unzip && echo "ZIP successfully installed!"
+    apt-get install -y dos2unix && echo "dos2unix successfully installed!"
 
 
     echo -e "\n########## Installing PPA (apache2) ##########\n"
@@ -119,7 +120,7 @@ Vagrant.configure("2") do |config|
     # Install Composer
     echo -e "\n########## Installing Composer ##########\n"
     curl -sS https://getcomposer.org/installer | php
-    mv composer.phar /usr/local/bin/composer
+    mv composer.phar /usr/local/bin/composer && echo "Composer successfully installed!"
 
 
     # Install Drush
@@ -128,50 +129,41 @@ Vagrant.configure("2") do |config|
     echo "https://drupal.stackexchange.com/questions/209161/drush-permission-denied-outside-htdocs"
     runuser -l vagrant -c 'cd && composer global require drush/drush:8.*'
     echo "export PATH='~/.config/composer/vendor/bin:$PATH'" >> /home/vagrant/.profile
-    runuser -l vagrant -c 'source /home/vagrant/.profile'
+    runuser -l vagrant -c 'source /home/vagrant/.profile'  && echo "Drush 8 successfully installed!"
     
 
     # Install WP CLI
     echo -e "\n########## Installing WP CLI ##########\n"
     curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
     chmod +x wp-cli.phar
-    mv wp-cli.phar /usr/local/bin/wp
+    mv wp-cli.phar /usr/local/bin/wp && echo "WP CLI successfully installed!"
     
 
     # Install NodeJs
     echo -e "\n########## Installing NodeJS ##########\n"
     curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash - > /dev/null 2>&1
-    sudo apt-get install -y nodejs > /dev/null 2>&1
+    sudo apt-get install -y nodejs > /dev/null 2>&1 && echo "NodeJS successfully installed!"
     
 
     # Install Astrum (for Pattern Library building)
     echo -e "\n########## Installing Astrum ##########\n"
-    sudo npm install -g astrum
+    sudo npm install -g astrum && echo "Astrum successfully installed!"
 
     
     # LOCK THE .SSH DIRECTORY SO YOU CAN'T ACCIDENTALLY BRICK THE VM!!!
     # https://www.ostechnix.com/prevent-files-folders-accidental-deletion-modification-linux/
     echo -e "Locking .ssh directory against modification or deletion.\nTo change this setting, see https://www.ostechnix.com/prevent-files-folders-accidental-deletion-modification-linux/"
-    sudo chattr -R +i ~/.ssh
+    sudo chattr -R +i ~/.ssh && echo "~/.ssh directory successfully locked!"
 
   SHELL
 
 # Scripts to run every time 'vagrant up' is run
 
   config.vm.provision "shell", run: 'always', inline: <<-SHELL
-
-    # @TODO: Make it impossible to accidentally delete the SSH directory, as this bricks the machine once you log out!!!
-    # https://unix.stackexchange.com/questions/20104/is-there-any-way-to-prevent-deletion-of-certain-files-from-user-owned-directory#answer-20107
-
-
     
-    # Add some aliases to make the VM shell much sexy
-    # echo " "
-    # echo "########## Adding aliases ##########\n"
+    echo -e "\n########## Add some aliases to make the VM shell much sexy ##########\n"
     if [ -f /home/vagrant/transfer/.bash_aliases ]; then 
-        cp /home/vagrant/transfer/.bash_aliases /home/vagrant/.bash_aliases
-        
-        # @TODO: Change the terminal background colour when SSH'd into the vagrant machine, to avoid confusion. 
+        cp /home/vagrant/transfer/.bash_aliases /home/vagrant/.bash_aliases && echo ".bash_aliases added!"
     else 
         echo "No .bash_alias file found, skipping..."
     fi
@@ -190,16 +182,15 @@ Vagrant.configure("2") do |config|
   SHELL
 
   # Always Start Apache and MySQL
-  config.vm.provision "shell", inline: "echo '########## Starting apache ##########' && sudo service apache2 start",
+  config.vm.provision "shell", inline: "echo -e '\n########## Starting Apache ##########\n' && sudo service apache2 start && echo 'Apache started!'",
     run: "always"
-  config.vm.provision "shell", inline: "echo '########## Starting mysql ##########' && sudo service mysql start",
+  config.vm.provision "shell", inline: "echo -e '\n########## Starting MySQL ##########\n' && sudo service mysql start && echo 'MySQL started!'",
     run: "always"
 
   config.vm.provision "shell", run: 'always', inline: <<-SHELL
-    echo -e "\n#### Restarting Apache"
-    echo " "
-    sudo service apache2 restart
-    echo "########## VM provisioning complete! ##########"
+    echo -e "\n########## Restarting Apache ##########\n"
+    sudo service apache2 restart && echo "Apache restarted successfully!"
+    echo -e "\n########## VM provisioning complete! ##########\n"
   SHELL
 
   # Auto-create the databases listed stored in /transfers/databases.txt
@@ -216,4 +207,5 @@ end
 # 3. Auto-download latest PROD backup from live hosting - DONE, see scripts/db-download-drupal-all.sh
 # 4. Auto-import latest PROD backup into matching database in VM. Maybe store the databases inside folders matching the DB name? - DONE, see scripts/db-import-all.sh
 # 5. Set up a local dev modules folder and auto-enable them, like admin_menu, module_filter and stage_file_proxy
+# 6. Change the terminal background colour when SSH'd into the vagrant machine, to avoid confusion
 # 
