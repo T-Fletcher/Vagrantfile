@@ -121,6 +121,8 @@ Vagrant.configure("2") do |config|
     echo -e "\n########## Installing Composer ##########\n"
     curl -sS https://getcomposer.org/installer | php
     mv composer.phar /usr/local/bin/composer && echo "Composer successfully installed!"
+    echo "Configuring Composer to not be stupid..." 
+    sudo composer config --global process-timeout 1000 && chown vagrant .composer -R
 
 
     # Install Drush
