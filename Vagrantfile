@@ -114,6 +114,12 @@ Vagrant.configure("2") do |config|
     sudo a2dismod mpm_event
     sudo a2enmod actions mpm_prefork rewrite php7.2
     sudo phpenmod php7.2-mbstring
+    echo -e "\n########## Increase PHP 7.2's file handling size and memory limits ##########\n" 
+    echo "See https://askubuntu.com/questions/20414/find-and-replace-text-within-a-file-using-commands#answer-20416"
+    sed -i 's/max_execution_time = 30/max_execution_time = 300/g' /etc/php/7.2/apache2/php.ini && echo "Updated max_execution_time from 30 to 300"
+    sed -i 's/max_input_time = 60/max_input_time = 300/g' /etc/php/7.2/apache2/php.ini && echo "Updated max_input_time from 60 to 300"
+    sed -i 's/post_max_size = 8M/post_max_size = 128M/g' /etc/php/7.2/apache2/php.ini && echo "Updated post_max_size from 8M to 128M"
+    sed -i 's/upload_max_filesize = 2M/upload_max_filesize = 128M/g' /etc/php/7.2/apache2/php.ini && echo "Updated upload_max_filesize from 2M to 128M"
     sudo service apache2 restart
 
 
