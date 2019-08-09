@@ -88,6 +88,9 @@ Vagrant.configure("2") do |config|
     sudo add-apt-repository ppa:ondrej/php
     sudo add-apt-repository ppa:ondrej/apache2
     echo "Copying in 000-default.conf site configuration to /etc/apache2/sites-available/"
+    
+    sudo bash -c 'if [[ ! -d /etc/apache2/sites-available ]]; then echo -e "\n/etc/apache2/sites-available not found, creating it now...\n" & mkdir /etc/apache2/sites-available; fi'
+    
     sudo cp /home/vagrant/transfer/000-default.conf /etc/apache2/sites-available/
     sudo cd /etc/apache2 && mkdir logs
     sudo service apache2 restart
@@ -99,7 +102,7 @@ Vagrant.configure("2") do |config|
     sudo apt-get -y install php7.2 libapache2-mod-php7.2 php7.2-mysql php7.2-mbstring php7.2-common php7.2-xml php7.2-gd php7.2-curl
 
 
-    # Install MySQL Server
+    # Install MySQL Server 
     echo -e "\n########## Preparation for MySQL ##########\n"
     echo "If you get MySQL errors in the output, check that there isn't another VM already occupying the synced ~/var/lib/mysql directory."
     echo "If there is, save a copy of the directory so you don't destroy another VM's databases, and empty it."
@@ -128,7 +131,7 @@ Vagrant.configure("2") do |config|
     curl -sS https://getcomposer.org/installer | php
     mv composer.phar /usr/local/bin/composer && echo "Composer successfully installed!"
     echo "Configuring Composer to not be stupid..." 
-    sudo composer config --global process-timeout 1000 && chown vagrant .composer -R
+    sudo composer config --global process-timeout 1000 && sudo chown vagrant .composer -R
 
 
     # Install Drush
@@ -210,10 +213,6 @@ end
 
 # @TODO:
 # 
-# 1. Get Drush installing the correct version - installs 5.x, not 8.x - is Composer required? - YES, DONE
-# 2. Auto-create relevant databases - DB list in transfers/databases.txt - DONE
-# 3. Auto-download latest PROD backup from live hosting - DONE, see scripts/db-download-drupal-all.sh
-# 4. Auto-import latest PROD backup into matching database in VM. Maybe store the databases inside folders matching the DB name? - DONE, see scripts/db-import-all.sh
-# 5. Set up a local dev modules folder and auto-enable them, like admin_menu, module_filter and stage_file_proxy
-# 6. Change the terminal background colour when SSH'd into the vagrant machine, to avoid confusion
+# 1. Set up a local dev modules folder and auto-enable them, like admin_menu, module_filter and stage_file_proxy
+# 2. Change the terminal background colour when SSH'd into the vagrant machine, to avoid confusion
 # 
