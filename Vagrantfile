@@ -175,10 +175,10 @@ Vagrant.configure("2") do |config|
     echo -e "\n########## Add some aliases to make the VM shell much sexy ##########\n"
     if [ -f /home/vagrant/transfer/.bash_aliases ]; then 
         cp /home/vagrant/transfer/.bash_aliases /home/vagrant/.bash_aliases && echo ".bash_aliases added!"
-    else 
+	    runuser -l vagrant -c 'source .bash_aliases' && ehco "Aliases sourced!"
+	else 
         echo "No .bash_alias file found, skipping..."
     fi
-    runuser -l vagrant -c 'source .bash_aliases'
 
 
     echo -e "\n########## Source Acquia site aliases ##########\n"
